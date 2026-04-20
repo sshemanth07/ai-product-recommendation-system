@@ -1,5 +1,5 @@
 from pathlib import Path
-import pandas as pd
+import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
@@ -9,10 +9,14 @@ from src.models import train_models
 from src.evaluation import evaluate_models
 from src.utils import save_plots
 
+
 def main():
     results_dir = Path("results")
+    artifacts_dir = Path("artifacts")
+
     results_dir.mkdir(exist_ok=True)
     (results_dir / "plots").mkdir(exist_ok=True)
+    artifacts_dir.mkdir(exist_ok=True)
 
     print("Loading data...")
     clients, events, product_props = load_data()
@@ -42,8 +46,22 @@ def main():
     print("Saving plots...")
     save_plots(predictions, probabilities, y_test, results_dir)
 
-    print("\n🎉 Evaluation completed successfully!")
-    print("Check the 'results/' folder.")
+    print("Saving artifacts...")
+    joblib.dump(models["Logistic Regression"], artifacts_dir / "logistic_regression.pkl")
+    joblib.dump(models["Random Forest"], artifacts_dir / "random_forest.pkl")
+    joblib.dump(scaler, artifacts_dir / "scaler.pkl")
+    joblib.dump(list(X.columns), artifacts_dir / "feature_columns.pkl")
+    joblib.dump(
+        {
+            "target_definition": "1 if total_buys <= 1 else 0",
+            "feature_count": len(X.columns),
+            "models": list(models.keys()),
+        },
+        artifacts_dir / "model_metadata.pkl",
+    )
+
+    print("Done.")
+
 
 if __name__ == "__main__":
     main()
