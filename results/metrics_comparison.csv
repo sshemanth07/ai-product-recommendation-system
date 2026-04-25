@@ -1,3 +1,3 @@
 ,Accuracy,Precision,Recall,F1-Score,AUROC
-Logistic Regression,1.0,1.0,1.0,1.0,1.0
+Logistic Regression,0.96,0.9474,1.0,0.973,1.0
 Random Forest,1.0,1.0,1.0,1.0,1.0

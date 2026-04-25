@@ -1,0 +1,12 @@
+data/raw/*.tar.gz
+data/raw/*.parquet
+data/raw/*.npy
+__pycache__/
+*.pyc
+results/plots/*
+results/*.csv
+results/*.txt
+.ipynb_checkpoints/
+*.ipynb
+.DS_Store
+data/
