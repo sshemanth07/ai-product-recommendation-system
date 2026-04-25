@@ -1,8 +1,3 @@
-#Data set is too large to be uploaded (1.3 GB in size). 
-The data is therefore provided in Google drive. 
-Link to the drive is: https://drive.google.com/file/d/1CFQo5t9EppV3JgUSWZJM2TSTChGWa5wl/view?usp=sharing
-Once downloaded, the file should be extyracted and placed in its specified format structure-Inside Data/Raw
-
 # AI-Based Product Recommendation System
 
 An end-to-end AI-powered product recommendation system built using the **Synerise eCommerce dataset**. This project is designed to generate personalised product recommendations based on user browsing and interaction behaviour, while also demonstrating a complete software development and MLOps workflow.
