@@ -1,5 +1,6 @@
 import pandas as pd
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, classification_report, confusion_matrix
 
 def evaluate_models(models, X_test, X_test_scaled, y_test, results_dir):
     metrics = {}
@@ -7,7 +8,7 @@ def evaluate_models(models, X_test, X_test_scaled, y_test, results_dir):
     probabilities = {}
 
     for name, model in models.items():
-        if name == "Logistic Regression":
+        if name == "Logistic Regression" or name == "Neural Network":
             X_input = X_test_scaled
         else:
             X_input = X_test
@@ -36,5 +37,6 @@ def evaluate_models(models, X_test, X_test_scaled, y_test, results_dir):
         for name in models:
             f.write(f"\n=== {name} ===\n")
             f.write(classification_report(y_test, predictions[name]))
+            f.write(f"\nConfusion Matrix:\n{confusion_matrix(y_test, predictions[name])}\n")
 
     return metrics_df, predictions, probabilities
