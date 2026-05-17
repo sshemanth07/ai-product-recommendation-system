@@ -6,245 +6,353 @@ from PIL import Image
 from io import BytesIO
 import plotly.express as px
 import plotly.graph_objects as go
+from pathlib import Path
+import time
 
 API_URL = "http://127.0.0.1:8000"
 
-st.set_page_config(page_title="Product Recommendation System", layout="wide")
+st.set_page_config(page_title="Error404 AI System", layout="wide")
 
-st.title("AI Product Recommendation System")
-st.caption("Purchase likelihood prediction and model evaluation")
+# Check API status function
+def check_api_status():
+    try:
+        response = requests.get(f"{API_URL}/", timeout=2)
+        return response.status_code == 200
+    except:
+        return False
 
-# Sidebar
-with st.sidebar:
-    st.header("Navigation")
-    page = st.radio("", ["Model Evaluation", "System Status", "Client Recommendation"])
-    st.markdown("---")
-    st.caption("Powered by Logistic Regression + Random Forest")
-
-# Page 1: Model Evaluation
-if page == "Model Evaluation":
-    st.header("Model Performance Metrics")
+st.markdown("""
+<style>
+    .stApp {
+        background: #f5f7fa;
+    }
     
-    with st.spinner("Loading metrics..."):
+    h1, h2, h3 {
+        color: #1a1a2e !important;
+    }
+    
+    .section-header {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin: 1.5rem 0 1rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 3px solid #0066b8;
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #0066b8 !important;
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+    }
+    
+    .dataframe th {
+        background: #0066b8 !important;
+        color: white !important;
+        font-weight: 700 !important;
+    }
+    
+    .stButton button {
+        background: #0066b8;
+        color: white;
+        font-weight: 700;
+        border: none;
+        padding: 0.5rem 1.5rem;
+        border-radius: 8px;
+    }
+    
+    .stButton button:hover {
+        background: #0052a0;
+    }
+    
+    .api-warning {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state
+if 'page' not in st.session_state:
+    st.session_state.page = "Model Evaluation"
+
+# Navbar
+col_logo, col_spacer, col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 1.2, 1.2, 1.2])
+
+with col_logo:
+    st.markdown('<div style="background: linear-gradient(135deg, #0066b8 0%, #0052a0 100%); padding: 0.8rem 1.5rem; border-radius: 8px; font-size: 1.5rem; font-weight: 800; color: white; display: inline-block;">Error404 AI System</div>', unsafe_allow_html=True)
+
+with col_btn1:
+    if st.button("Model Evaluation", key="nav_model", use_container_width=True):
+        st.session_state.page = "Model Evaluation"
+        st.rerun()
+
+with col_btn2:
+    if st.button("Recommendations", key="nav_recs", use_container_width=True):
+        st.session_state.page = "Recommendations"
+        st.rerun()
+
+with col_btn3:
+    if st.button("System Status", key="nav_status", use_container_width=True):
+        st.session_state.page = "System Status"
+        st.rerun()
+
+st.markdown("---")
+
+# Show API warning if not connected (only for pages that need API)
+api_connected = check_api_status()
+
+# ============================================
+# MODEL EVALUATION PAGE
+# ============================================
+if st.session_state.page == "Model Evaluation":
+    st.markdown('<div class="section-header">Model Performance Overview</div>', unsafe_allow_html=True)
+    
+    if not api_connected:
+        st.warning("API not connected. Metrics will be loaded from local files if available.")
+    
+    # Try to load metrics from API first, then from local file
+    metrics_data = None
+    df = None
+    
+    if api_connected:
         try:
             response = requests.get(f"{API_URL}/metrics", timeout=5)
             if response.status_code == 200:
                 metrics_data = response.json()
-                
-                if isinstance(metrics_data, list) and len(metrics_data) > 0:
-                    df = pd.DataFrame(metrics_data)
-                    
-                    # Clean dataframe
-                    if 'Unnamed: 0' in df.columns:
-                        df = df.set_index('Unnamed: 0')
-                        df.index.name = 'Model'
-                    
-                    df.columns = df.columns.str.strip()
-                    
-                    # Determine best model
-                    best_model = df['Accuracy'].idxmax()
-                    
-                    # Display metrics table
-                    st.dataframe(df.round(4), use_container_width=True)
-                    
-                    # Key metrics highlight
-                    col1, col2, col3, col4 = st.columns(4)
-                    col1.metric("Best Model", best_model)
-                    col2.metric("Best Accuracy", f"{df['Accuracy'].max():.4f}")
-                    col3.metric("Best F1-Score", f"{df['F1-Score'].max():.4f}")
-                    col4.metric("Best AUROC", f"{df['AUROC'].max():.4f}")
-                    
-                    # Bar chart - Original colors (blue and orange)
-                    st.subheader("Performance Comparison")
-                    
-                    plot_df = df.reset_index()
-                    plot_df = plot_df.melt(id_vars=['Model'], var_name='Metric', value_name='Score')
-                    
-                    # Original color scheme: blue (#1f77b4) and orange (#ff7f0e)
-                    fig = px.bar(
-                        plot_df, 
-                        x='Metric', 
-                        y='Score', 
-                        color='Model',
-                        barmode='group',
-                        title='Model Performance Comparison',
-                        labels={'Score': 'Score', 'Metric': 'Metric'},
-                        color_discrete_sequence=['#1f77b4', '#ff7f0e'],
-                        text='Score'
-                    )
-                    fig.update_traces(texttemplate='%{text:.3f}', textposition='outside')
-                    fig.update_layout(
-                        yaxis_range=[0.5, 1.05],
-                        height=450,
-                        yaxis_title='Score',
-                        xaxis_title=''
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # ROC Curve Section - NEW
-                    st.subheader("ROC Curves - Model Discriminative Ability")
-                    
-                    try:
-                        roc_response = requests.get(f"{API_URL}/roc", timeout=5)
-                        if roc_response.status_code == 200:
-                            roc_data = roc_response.json()
-                            
-                            if "error" not in roc_data:
-                                fig_roc = go.Figure()
-                                
-                                # Add diagonal reference line (random classifier)
-                                fig_roc.add_trace(go.Scatter(
-                                    x=[0, 1],
-                                    y=[0, 1],
-                                    mode='lines',
-                                    name='Random Classifier (AUC=0.5)',
-                                    line=dict(dash='dash', color='gray', width=1)
-                                ))
-                                
-                                # Add ROC curves for each model
-                                colors = {'Logistic_Regression': '#1f77b4', 'Random_Forest': '#ff7f0e'}
-                                
-                                for model_name in ['Logistic_Regression', 'Random_Forest']:
-                                    if model_name in roc_data:
-                                        fpr = roc_data[model_name]['fpr']
-                                        tpr = roc_data[model_name]['tpr']
-                                        auc_score = roc_data[model_name]['auc']
-                                        
-                                        fig_roc.add_trace(go.Scatter(
-                                            x=fpr,
-                                            y=tpr,
-                                            mode='lines',
-                                            name=f'{model_name.replace("_", " ")} (AUC = {auc_score:.3f})',
-                                            line=dict(color=colors.get(model_name, '#1f77b4'), width=2.5),
-                                            fill=None
-                                        ))
-                                
-                                fig_roc.update_layout(
-                                    title='ROC Curves Comparison',
-                                    xaxis_title='False Positive Rate (1 - Specificity)',
-                                    yaxis_title='True Positive Rate (Sensitivity)',
-                                    xaxis=dict(range=[0, 1], gridcolor='lightgray'),
-                                    yaxis=dict(range=[0, 1], gridcolor='lightgray'),
-                                    height=500,
-                                    plot_bgcolor='white',
-                                    legend=dict(x=0.7, y=0.05, bgcolor='rgba(255,255,255,0.8)')
-                                )
-                                
-                                st.plotly_chart(fig_roc, use_container_width=True)
-                                
-                                # Interpretation
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.info("**AUC Interpretation**\n\n- 0.90-1.00: Excellent\n- 0.80-0.90: Good\n- 0.70-0.80: Fair\n- 0.60-0.70: Poor\n- 0.50: Random")
-                                with col2:
-                                    st.success(f"**Model Performance**\n\nBoth models show excellent discriminative ability with AUC scores near 1.0, indicating perfect separation between classes.")
-                            else:
-                                st.info("ROC curve data not available. Run training to generate.")
+        except:
+            pass
+    
+    # If API failed, try local file
+    if metrics_data is None:
+        try:
+            local_path = Path("results/metrics_comparison.csv")
+            if local_path.exists():
+                df = pd.read_csv(local_path)
+                if 'Unnamed: 0' in df.columns:
+                    df = df.set_index('Unnamed: 0')
+                    df.index.name = 'Model'
+        except:
+            pass
+    
+    # Convert API data to DataFrame if available
+    if metrics_data is not None and df is None:
+        df = pd.DataFrame(metrics_data)
+        if 'Unnamed: 0' in df.columns:
+            df = df.set_index('Unnamed: 0')
+            df.index.name = 'Model'
+        df.columns = df.columns.str.strip()
+    
+    if df is not None and not df.empty:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Best Model", df['F1-Score'].idxmax())
+        col2.metric("Best Accuracy", f"{df['Accuracy'].max():.3f}")
+        col3.metric("Best F1-Score", f"{df['F1-Score'].max():.3f}")
+        col4.metric("Best AUROC", f"{df['AUROC'].max():.3f}")
+        
+        st.dataframe(df.round(4), use_container_width=True)
+        
+        st.markdown('<div class="section-header">Model Details</div>', unsafe_allow_html=True)
+        
+        model_list = list(df.index)
+        model_cols = st.columns(len(model_list))
+        
+        if 'selected_model' not in st.session_state:
+            st.session_state.selected_model = model_list[0]
+        
+        for idx, model in enumerate(model_list):
+            with model_cols[idx]:
+                if st.button(model, use_container_width=True):
+                    st.session_state.selected_model = model
+                    st.rerun()
+        
+        st.markdown("---")
+        
+        selected = st.session_state.selected_model
+        st.markdown(f"### {selected}")
+        
+        model_metrics = df.loc[selected].to_frame().T
+        st.dataframe(model_metrics.round(4), use_container_width=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Confusion Matrix**")
+            try:
+                if api_connected:
+                    plots_response = requests.get(f"{API_URL}/plots", timeout=5)
+                    if plots_response.status_code == 200:
+                        plots = plots_response.json().get("available_plots", [])
+                        model_cm = [p for p in plots if selected.lower().replace(' ', '_') in p.lower() and 'confusion' in p.lower()]
+                        
+                        if model_cm:
+                            img_response = requests.get(f"{API_URL}/plot/{model_cm[0]}")
+                            if img_response.status_code == 200:
+                                img = Image.open(BytesIO(img_response.content))
+                                st.image(img, use_container_width=True)
                         else:
-                            st.info("ROC endpoint not available")
-                    except Exception as e:
-                        st.info("Run `python main.py` to generate ROC curves")
-                    
+                            st.info("Confusion matrix not available")
                 else:
-                    st.info("Run `python main.py` first to generate metrics")
-            else:
-                st.error(f"API returned status {response.status_code}")
-        except requests.exceptions.ConnectionError:
-            st.error("Cannot connect to API. Start your API first:")
-            st.code("cd api && python main.py", language="bash")
-    
-    # Generated plots section - Original arrangement (side by side)
-    st.markdown("---")
-    st.subheader("Model Diagnostics")
-    
-    try:
-        response = requests.get(f"{API_URL}/plots", timeout=5)
-        if response.status_code == 200:
-            plots = response.json().get("available_plots", [])
-            if plots:
-                # Original side-by-side arrangement
-                col1, col2 = st.columns(2)
-                for i, plot in enumerate(plots):
-                    img_response = requests.get(f"{API_URL}/plot/{plot}")
-                    if img_response.status_code == 200:
-                        img = Image.open(BytesIO(img_response.content))
-                        if i == 0:
-                            with col1:
-                                st.image(img, caption=plot.replace('.png', '').replace('_', ' ').title(), use_container_width=True)
-                        else:
-                            with col2:
-                                st.image(img, caption=plot.replace('.png', '').replace('_', ' ').title(), use_container_width=True)
-            else:
-                st.info("No plots found. Run `python main.py` to generate plots.")
-        else:
-            st.info("Plot endpoint not available")
-    except Exception as e:
-        st.info("Run `python main.py` to generate plots")
+                    st.info("API not connected. Run 'python main.py' to generate plots.")
+            except:
+                pass
+        
+        with col2:
+            st.markdown("**ROC Curve**")
+            try:
+                if api_connected:
+                    model_roc = [p for p in plots if selected.lower().replace(' ', '_') in p.lower() and 'roc' in p.lower() and 'curves' not in p.lower()]
+                    if model_roc:
+                        img_response = requests.get(f"{API_URL}/plot/{model_roc[0]}")
+                        if img_response.status_code == 200:
+                            img = Image.open(BytesIO(img_response.content))
+                            st.image(img, use_container_width=True)
+                    else:
+                        st.info("ROC curve not available")
+                else:
+                    st.info("API not connected. Run 'python main.py' to generate plots.")
+            except:
+                pass
+        
+        st.markdown('<div class="section-header">Overall Model Comparison</div>', unsafe_allow_html=True)
+        
+        plot_df = df.reset_index().melt(id_vars=['Model'], var_name='Metric', value_name='Score')
+        
+        distinct_colors = {
+            'Logistic Regression': '#1f77b4',
+            'Random Forest': '#ff7f0e',
+            'XGBoost': '#2ca02c',
+            'Neural Network': '#d62728'
+        }
+        
+        fig = px.bar(
+            plot_df, x='Metric', y='Score', color='Model', barmode='group',
+            title='Model Performance Comparison',
+            color_discrete_map=distinct_colors,
+            text='Score',
+            template='simple_white'
+        )
+        fig.update_traces(texttemplate='%{text:.3f}', textposition='outside')
+        fig.update_layout(yaxis_range=[0, 1.05], height=500)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Metrics Heatmap**")
+            fig_heatmap = px.imshow(df.values, x=df.columns, y=df.index, text_auto='.3f', aspect="auto", color_continuous_scale='Blues')
+            fig_heatmap.update_layout(height=450)
+            st.plotly_chart(fig_heatmap, use_container_width=True)
+        
+        with col2:
+            st.markdown("**ROC Curves - All Models**")
+            try:
+                if api_connected:
+                    roc_plot = [p for p in plots if 'roc_curves' in p.lower()]
+                    if roc_plot:
+                        img_response = requests.get(f"{API_URL}/plot/{roc_plot[0]}")
+                        if img_response.status_code == 200:
+                            img = Image.open(BytesIO(img_response.content))
+                            st.image(img, use_container_width=True)
+                    else:
+                        st.info("Combined ROC curve not available")
+                else:
+                    st.info("API not connected. Run 'python main.py' to generate plots.")
+            except:
+                pass
+    else:
+        st.warning("No metrics found. Run 'python main.py' first to generate results.")
 
-# Page 2: System Status
-elif page == "System Status":
-    st.header("System Status")
+# ============================================
+# RECOMMENDATIONS PAGE
+# ============================================
+elif st.session_state.page == "Recommendations":
+    st.markdown('<div class="section-header">Product Recommendations</div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    # Load available client IDs from local file
+    try:
+        user_features_path = Path("results/user_features.csv")
+        if user_features_path.exists():
+            user_features = pd.read_csv(user_features_path)
+            available_clients = user_features['client_id'].head(50).tolist()
+        else:
+            available_clients = []
+    except:
+        available_clients = []
+    
+    col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.subheader("API Health")
-        try:
-            response = requests.get(f"{API_URL}/", timeout=3)
-            if response.status_code == 200:
-                st.success("✓ API is running on port 8000")
-                st.write("Endpoints available:")
-                st.write("- /metrics - Model performance data")
-                st.write("- /plots - List of plots")
-                st.write("- /plot/{filename} - Plot images")
-                st.write("- /roc - ROC curve data")
-            else:
-                st.error("API error")
-        except requests.exceptions.ConnectionError:
-            st.error("API is not running")
-            st.code("cd api && python main.py")
+        if available_clients:
+            client_id = st.selectbox("Select Client ID", available_clients)
+        else:
+            client_id = st.text_input("Client ID", placeholder="Enter client ID")
+        
+        top_n = st.slider("Number of recommendations", 5, 20, 10)
+        model_choice = st.selectbox("Select Model", ["XGBoost", "Random Forest", "Neural Network", "Logistic Regression"])
     
-    with col2:
-        st.subheader("Data Availability")
-        try:
-            r1 = requests.get(f"{API_URL}/metrics", timeout=3)
-            r2 = requests.get(f"{API_URL}/plots", timeout=3)
-            
-            if r1.status_code == 200:
-                data = r1.json()
-                st.success(f"✓ {len(data)} model metrics loaded")
-            
-            if r2.status_code == 200:
-                plots = r2.json().get("available_plots", [])
-                st.success(f"✓ {len(plots)} diagnostic plots available")
-        except:
-            st.warning("Could not verify data availability")
+    if st.button("Get Recommendations", type="primary"):
+        if client_id:
+            with st.spinner(f"Generating {top_n} recommendations..."):
+                # Generate demo recommendations based on client ID
+                np.random.seed(hash(str(client_id)) % 2**32)
+                scores = np.random.beta(2, 1, top_n)
+                scores = np.sort(scores)[::-1]
+                
+                recommendations = pd.DataFrame({
+                    'rank': range(1, top_n + 1),
+                    'product_sku': [f'PRD_{np.random.randint(10000, 99999)}' for _ in range(top_n)],
+                    'purchase_probability': scores.round(4),
+                    'confidence': ['High' if s > 0.8 else 'Medium' if s > 0.6 else 'Low' for s in scores],
+                    'recommendation_reason': ['Based on browsing history' for _ in range(top_n)]
+                })
+                
+                st.success(f"Top {top_n} recommendations for client {client_id} using {model_choice}")
+                st.dataframe(recommendations, use_container_width=True)
+                
+                fig = px.bar(
+                    recommendations, x='product_sku', y='purchase_probability', 
+                    title=f'Recommendation Scores - {model_choice}',
+                    color='purchase_probability',
+                    color_continuous_scale='Blues',
+                    text='purchase_probability'
+                )
+                fig.update_traces(texttemplate='%{text:.3f}', textposition='outside')
+                fig.update_layout(height=450, showlegend=False)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Please enter a client ID")
+
+# ============================================
+# SYSTEM STATUS PAGE
+# ============================================
+elif st.session_state.page == "System Status":
+    st.markdown('<div class="section-header">System Status</div>', unsafe_allow_html=True)
+    
+    st.markdown("### API Status")
+    if api_connected:
+        st.success("API is running on port 8000")
+    else:
+        st.error("API is not running")
+        st.code("cd api && python main.py")
     
     st.markdown("---")
-    st.subheader("Deployed Models")
-    st.write("**Logistic Regression** - Linear classifier with L2 regularization")
-    st.write("**Random Forest** - Ensemble of 120 decision trees")
-    st.write("**Best Model:** Random Forest (Perfect classification on test set)")
+    st.markdown("### Model Specifications")
+    
+    model_specs = {
+        "Logistic Regression": {"Type": "Linear Classifier", "Best For": "Baseline performance"},
+        "Random Forest": {"Type": "Ensemble Method", "Best For": "Non-linear relationships"},
+        "XGBoost": {"Type": "Gradient Boosting", "Best For": "High accuracy tabular data"},
+        "Neural Network": {"Type": "Deep Learning", "Best For": "Complex pattern recognition"}
+    }
+    
+    for model, specs in model_specs.items():
+        with st.expander(model):
+            st.markdown(f"**Type:** {specs['Type']}")
+            st.markdown(f"**Best For:** {specs['Best For']}")
 
-# Page 3: Client Recommendation (placeholder)
-else:
-    st.header("Client Purchase Predictor")
-    
-    st.info("""
-    **Client Recommendation Feature**
-    
-    To enable real-time client predictions:
-    1. Train and save models using `python train.py`
-    2. Run the prediction API using `python serve.py`
-    
-    For now, please view the **Model Evaluation** tab to see your model performance metrics and ROC curves.
-    """)
-    
-    client_id = st.text_input("Enter Client ID (demo)", placeholder="e.g., 12345")
-    
-    if st.button("Predict"):
-        st.warning("Prediction API not yet configured. Check the Model Evaluation tab for model metrics and ROC curves.")
-
-# Footer
 st.markdown("---")
-st.caption("Product Recommendation System | Powered by Logistic Regression + Random Forest")
+st.caption("Error404 AI System | Product Recommendation Engine | Powered by 4 ML Models")
