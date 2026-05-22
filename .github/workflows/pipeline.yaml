@@ -22,6 +22,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Show repository files
+        run: |
+          ls -la
+          echo "Workflow folder:"
+          ls -la .github/workflows || true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -30,11 +36,17 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f requrement.txt ]; then
+            pip install -r requrement.txt
+          else
+            echo "No requirements file found"
+            exit 1
+          fi
 
       - name: Check ClearML secrets
         run: |
-          echo "Checking ClearML environment variables..."
           if [ -z "$CLEARML_API_ACCESS_KEY" ]; then echo "Missing CLEARML_API_ACCESS_KEY"; exit 1; fi
           if [ -z "$CLEARML_API_SECRET_KEY" ]; then echo "Missing CLEARML_API_SECRET_KEY"; exit 1; fi
           if [ -z "$CLEARML_API_HOST" ]; then echo "Missing CLEARML_API_HOST"; exit 1; fi
