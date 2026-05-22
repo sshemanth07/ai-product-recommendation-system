@@ -529,8 +529,8 @@ def step_7_final_summary(artifact_status):
 
 
 pipe = PipelineController(
-    project="AI-Based Product Recommendation System",
-    name="Sprint 3 - Full ClearML MLOps Pipeline",
+    project="AI-Based Product Recommendation System Final",
+    name="Full ClearML MLOps Pipeline",
     version="1.0"
 )
 

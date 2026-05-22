@@ -60,4 +60,6 @@ jobs:
 
       - name: Run ClearML pipeline
         run: |
+          echo "Running ClearML pipeline..."
           python clearml_pipeline.py
+          echo "ClearML pipeline command completed."
