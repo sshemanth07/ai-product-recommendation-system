@@ -1,0 +1,63 @@
+name: ClearML CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  run-clearml-pipeline:
+    runs-on: ubuntu-latest
+
+    env:
+      CLEARML_API_ACCESS_KEY: ${{ secrets.CLEARML_API_ACCESS_KEY }}
+      CLEARML_API_SECRET_KEY: ${{ secrets.CLEARML_API_SECRET_KEY }}
+      CLEARML_API_HOST: ${{ secrets.CLEARML_API_HOST }}
+      CLEARML_WEB_HOST: ${{ secrets.CLEARML_WEB_HOST }}
+      CLEARML_FILES_HOST: ${{ secrets.CLEARML_FILES_HOST }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show repository files
+        run: |
+          ls -la
+          echo "Workflow folder:"
+          ls -la .github/workflows || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          elif [ -f requrement.txt ]; then
+            pip install -r requrement.txt
+          else
+            echo "No requirements file found"
+            exit 1
+          fi
+
+      - name: Check ClearML secrets
+        run: |
+          if [ -z "$CLEARML_API_ACCESS_KEY" ]; then echo "Missing CLEARML_API_ACCESS_KEY"; exit 1; fi
+          if [ -z "$CLEARML_API_SECRET_KEY" ]; then echo "Missing CLEARML_API_SECRET_KEY"; exit 1; fi
+          if [ -z "$CLEARML_API_HOST" ]; then echo "Missing CLEARML_API_HOST"; exit 1; fi
+          if [ -z "$CLEARML_WEB_HOST" ]; then echo "Missing CLEARML_WEB_HOST"; exit 1; fi
+          if [ -z "$CLEARML_FILES_HOST" ]; then echo "Missing CLEARML_FILES_HOST"; exit 1; fi
+          echo "All ClearML secrets are available."
+
+      - name: Test ClearML API connection
+        run: |
+          curl -I "$CLEARML_API_HOST"
+
+      - name: Run ClearML pipeline
+        run: |
+          python clearml_pipeline.py
